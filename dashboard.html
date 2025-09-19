@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distributed Chef Challenge</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #ff9a56 0%, #ffad56 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(255, 154, 86, 0.3);
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .kitchen-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .kitchen-node {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 2px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+
+        .kitchen-node.overloaded {
+            border-color: #ff6b6b;
+            background: linear-gradient(135deg, #ffe8e8 0%, #fff0f0 100%);
+        }
+
+        .kitchen-node.balanced {
+            border-color: #51cf66;
+            background: linear-gradient(135deg, #e8ffe8 0%, #f0fff0 100%);
+        }
+
+        .kitchen-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .kitchen-name {
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .load-bar-container {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .load-bar {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.5s ease;
+            background: linear-gradient(90deg, #51cf66, #ff6b6b);
+        }
+
+        .orders-list {
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .order-item {
+            background: #f8f9fa;
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 8px;
+            font-size: 0.9em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .order-status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .status-queued { background: #fff3cd; color: #856404; }
+        .status-cooking { background: #d4edda; color: #155724; }
+        .status-ready { background: #d1ecf1; color: #0c5460; }
+
+        .log-container {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 10px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .animation-panel {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+
+        .chef-emoji {
+            font-size: 3em;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-20px); }
+            60% { transform: translateY(-10px); }
+        }
+
+        .order-flow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .flow-step {
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            flex: 1;
+            margin: 5px;
+            min-width: 120px;
+        }
+
+        .flow-arrow {
+            font-size: 2em;
+            color: #667eea;
+            margin: 0 10px;
+        }
+
+        .docker-info {
+            background: #0db7ed;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🍳 Distributed Chef Challenge 🍳</h1>
+            <p>Smart Cloud Kitchen with Dynamic Load Balancing</p>
+        </div>
+
+        <div class="controls">
+            <button onclick="addOrder()">Add Random Order 🍕</button>
+            <button onclick="simulateRush()">Lunch Rush! 🚀</button>
+            <button onclick="migrateOrders()">Migrate Orders ⚡</button>
+            <button onclick="resetSystem()">Reset System 🔄</button>
+            <button onclick="toggleAnimation()">Toggle Animation 🎬</button>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalOrders">0</div>
+                <div>Total Orders</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="activeKitchens">4</div>
+                <div>Active Kitchens</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="avgLoadTime">2.3s</div>
+                <div>Avg Processing Time</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="systemLoad">45%</div>
+                <div>System Load</div>
+            </div>
+        </div>
+
+        <div class="animation-panel" id="animationPanel" style="display: none;">
+            <div class="chef-emoji">👨‍🍳</div>
+            <h3>Order Processing Animation</h3>
+            <div class="order-flow" id="orderFlow">
+                <div class="flow-step">📱 Order Received</div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-step">⚖️ Load Balancer</div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-step">🏪 Kitchen Assignment</div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-step">👨‍🍳 Cooking</div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-step">✅ Order Ready</div>
+            </div>
+        </div>
+
+        <div class="kitchen-grid" id="kitchenGrid">
+            <!-- Kitchen nodes will be dynamically generated -->
+        </div>
+
+        <div class="docker-info">
+            <h3>🐳 Docker Deployment Status</h3>
+            <p><strong>Containers Running:</strong> <span id="dockerContainers">4/4</span></p>
+            <p><strong>Load Balancer:</strong> <span style="color: #51cf66;">●</span> Active</p>
+            <p><strong>Database:</strong> <span style="color: #51cf66;">●</span> Connected</p>
+            <p><strong>Message Queue:</strong> <span style="color: #51cf66;">●</span> Operational</p>
+        </div>
+
+        <div>
+            <h3>System Logs</h3>
+            <div class="log-container" id="logContainer">
+                <div>Distributed Chef System Initialized...</div>
+                <div>Load Balancer started on port 8080</div>
+                <div>4 Kitchen nodes connected successfully</div>
+                <div>Ready to accept orders!</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // System state
+        let kitchens = [
+            { id: 1, name: "Downtown Kitchen", load: 30, orders: [], location: "Downtown", capacity: 10 },
+            { id: 2, name: "Uptown Bistro", load: 50, orders: [], location: "Uptown", capacity: 12 },
+            { id: 3, name: "Suburb Deli", load: 20, orders: [], location: "Suburbs", capacity: 8 },
+            { id: 4, name: "Express Kitchen", load: 70, orders: [], location: "Mall", capacity: 15 }
+        ];
+
+        let totalOrders = 0;
+        let animationEnabled = false;
+        let orderCounter = 1;
+
+        const foodItems = [
+            "🍕 Margherita Pizza", "🍔 Beef Burger", "🍝 Spaghetti", 
+            "🥗 Caesar Salad", "🍜 Ramen", "🌮 Fish Taco",
+            "🍣 Sushi Roll", "🥙 Chicken Wrap", "🍳 Breakfast Plate"
+        ];
+
+        const orderStatuses = ["queued", "cooking", "ready"];
+
+        function initializeSystem() {
+            renderKitchens();
+            updateStats();
+            log("System initialized with " + kitchens.length + " kitchen nodes");
+        }
+
+        function renderKitchens() {
+            const grid = document.getElementById('kitchenGrid');
+            grid.innerHTML = '';
+
+            kitchens.forEach(kitchen => {
+                const kitchenDiv = document.createElement('div');
+                kitchenDiv.className = `kitchen-node ${getKitchenStatus(kitchen)}`;
+                
+                kitchenDiv.innerHTML = `
+                    <div class="kitchen-header">
+                        <div class="kitchen-name">🏪 ${kitchen.name}</div>
+                        <div>${kitchen.location}</div>
+                    </div>
+                    <div>Load: ${kitchen.load}% (${kitchen.orders.length}/${kitchen.capacity})</div>
+                    <div class="load-bar-container">
+                        <div class="load-bar" style="width: ${kitchen.load}%"></div>
+                    </div>
+                    <div class="orders-list">
+                        ${kitchen.orders.map(order => `
+                            <div class="order-item">
+                                <span>${order.item}</span>
+                                <span class="order-status status-${order.status}">${order.status}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                
+                grid.appendChild(kitchenDiv);
+            });
+        }
+
+        function getKitchenStatus(kitchen) {
+            if (kitchen.load > 80) return 'overloaded';
+            if (kitchen.load < 60) return 'balanced';
+            return '';
+        }
+
+        function addOrder() {
+            const selectedKitchen = selectOptimalKitchen();
+            const newOrder = {
+                id: orderCounter++,
+                item: foodItems[Math.floor(Math.random() * foodItems.length)],
+                status: 'queued',
+                timestamp: new Date().toLocaleTimeString()
+            };
+
+            selectedKitchen.orders.push(newOrder);
+            selectedKitchen.load = Math.min(100, selectedKitchen.load + Math.random() * 15 + 5);
+            totalOrders++;
+
+            log(`Order #${newOrder.id} (${newOrder.item}) assigned to ${selectedKitchen.name}`);
+            
+            if (animationEnabled) {
+                animateOrderFlow();
+            }
+
+            // Simulate order processing
+            setTimeout(() => {
+                const orderIndex = selectedKitchen.orders.findIndex(o => o.id === newOrder.id);
+                if (orderIndex !== -1) {
+                    selectedKitchen.orders[orderIndex].status = 'cooking';
+                    renderKitchens();
+                }
+                
+                setTimeout(() => {
+                    const orderIndex = selectedKitchen.orders.findIndex(o => o.id === newOrder.id);
+                    if (orderIndex !== -1) {
+                        selectedKitchen.orders[orderIndex].status = 'ready';
+                        selectedKitchen.load = Math.max(0, selectedKitchen.load - Math.random() * 10 - 5);
+                        
+                        setTimeout(() => {
+                            selectedKitchen.orders.splice(orderIndex, 1);
+                            log(`Order #${newOrder.id} completed and delivered from ${selectedKitchen.name}`);
+                            renderKitchens();
+                            updateStats();
+                        }, 2000);
+                    }
+                }, Math.random() * 3000 + 2000);
+            }, 1000);
+
+            renderKitchens();
+            updateStats();
+        }
+
+        function selectOptimalKitchen() {
+            // Load balancing algorithm: select kitchen with lowest load percentage
+            return kitchens.reduce((prev, current) => 
+                (prev.load < current.load) ? prev : current
+            );
+        }
+
+        function simulateRush() {
+            log("🚀 Lunch rush started! Processing multiple orders...");
+            for (let i = 0; i < 8; i++) {
+                setTimeout(() => addOrder(), i * 500);
+            }
+        }
+
+        function migrateOrders() {
+            log("⚡ Initiating order migration for load balancing...");
+            
+            const overloadedKitchens = kitchens.filter(k => k.load > 80);
+            const availableKitchens = kitchens.filter(k => k.load < 60);
+
+            overloadedKitchens.forEach(overloaded => {
+                if (overloaded.orders.length > 0 && availableKitchens.length > 0) {
+                    const orderToMigrate = overloaded.orders.pop();
+                    const targetKitchen = availableKitchens[0];
+                    
+                    targetKitchen.orders.push(orderToMigrate);
+                    overloaded.load -= 10;
+                    targetKitchen.load += 10;
+                    
+                    log(`Order #${orderToMigrate.id} migrated from ${overloaded.name} to ${targetKitchen.name}`);
+                }
+            });
+
+            renderKitchens();
+            updateStats();
+        }
+
+        function resetSystem() {
+            kitchens.forEach(kitchen => {
+                kitchen.orders = [];
+                kitchen.load = Math.random() * 30 + 20;
+            });
+            totalOrders = 0;
+            orderCounter = 1;
+            
+            log("System reset completed. All kitchens cleared.");
+            renderKitchens();
+            updateStats();
+        }
+
+        function toggleAnimation() {
+            animationEnabled = !animationEnabled;
+            const panel = document.getElementById('animationPanel');
+            panel.style.display = animationEnabled ? 'block' : 'none';
+            log(`Animation ${animationEnabled ? 'enabled' : 'disabled'}`);
+        }
+
+        function animateOrderFlow() {
+            const steps = document.querySelectorAll('.flow-step');
+            steps.forEach((step, index) => {
+                setTimeout(() => {
+                    step.style.background = '#667eea';
+                    step.style.color = 'white';
+                    step.style.transform = 'scale(1.1)';
+                    
+                    setTimeout(() => {
+                        step.style.background = 'white';
+                        step.style.color = 'black';
+                        step.style.transform = 'scale(1)';
+                    }, 500);
+                }, index * 600);
+            });
+        }
+
+        function updateStats() {
+            document.getElementById('totalOrders').textContent = totalOrders;
+            
+            const avgLoad = kitchens.reduce((sum, k) => sum + k.load, 0) / kitchens.length;
+            document.getElementById('systemLoad').textContent = Math.round(avgLoad) + '%';
+            
+            const activeKitchens = kitchens.filter(k => k.load > 0).length;
+            document.getElementById('activeKitchens').textContent = activeKitchens;
+            
+            const avgTime = (Math.random() * 2 + 1.5).toFixed(1);
+            document.getElementById('avgLoadTime').textContent = avgTime + 's';
+        }
+
+        function log(message) {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            logContainer.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        // Initialize the system when page loads
+        window.onload = initializeSystem;
+
+        // Simulate some background activity
+        setInterval(() => {
+            if (Math.random() < 0.3) {
+                addOrder();
+            }
+        }, 10000);
+    </script>
+</body>
+</html>
