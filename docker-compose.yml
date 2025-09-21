@@ -1,4 +1,4 @@
-version: '3.8'
+﻿version: '3.8'
 
 services:
   redis:
@@ -35,6 +35,7 @@ services:
       timeout: 10s
       retries: 5
 
+  # Simple web server for the dashboard
   dashboard:
     image: nginx:alpine
     container_name: chef_dashboard
@@ -46,13 +47,71 @@ services:
     networks:
       - chef_network
 
+  # Mock load balancer (simplified for demo)
   load_balancer:
-    build: . # Build the image from the Dockerfile in the current directory
+    image: python:3.11-slim
     container_name: chef_load_balancer
     ports:
       - "8080:8080"
     volumes:
-      - .:/app # Still useful for development to see code changes live
+      - .:/app
+    working_dir: /app
+    command: python -c "
+import json
+import time
+import random
+from datetime import datetime
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+class LoadBalancerHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == '/health':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            response = {'status': 'healthy', 'timestamp': datetime.now().isoformat()}
+            self.wfile.write(json.dumps(response).encode())
+        elif self.path == '/api/status':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            kitchens = {
+                'kitchen_1': {'name': 'Downtown Kitchen', 'load': random.randint(20, 80), 'capacity': 10, 'status': 'available'},
+                'kitchen_2': {'name': 'Uptown Bistro', 'load': random.randint(20, 80), 'capacity': 12, 'status': 'available'},
+                'kitchen_3': {'name': 'Suburb Deli', 'load': random.randint(20, 80), 'capacity': 8, 'status': 'available'},
+                'kitchen_4': {'name': 'Express Kitchen', 'load': random.randint(20, 80), 'capacity': 15, 'status': 'available'}
+            }
+            response = {
+                'kitchens': kitchens,
+                'system_health': 'Healthy',
+                'total_orders': random.randint(100, 500),
+                'uptime': '99.9%'
+            }
+            self.wfile.write(json.dumps(response).encode())
+        else:
+            self.send_response(404)
+            self.end_headers()
+    
+    def do_POST(self):
+        if self.path == '/api/orders':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            order_id = f'order_{random.randint(1000, 9999)}'
+            response = {'order_id': order_id, 'status': 'created'}
+            self.wfile.write(json.dumps(response).encode())
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+if __name__ == '__main__':
+    server = HTTPServer(('0.0.0.0', 8080), LoadBalancerHandler)
+    print('Load Balancer Mock running on port 8080...')
+    server.serve_forever()
+"
     networks:
       - chef_network
 
@@ -71,8 +130,6 @@ services:
       - "3000:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin123
-    volumes:
-      - grafana_data:/var/lib/grafana
     networks:
       - chef_network
 
@@ -83,4 +140,3 @@ networks:
 volumes:
   redis_data:
   postgres_data:
-  grafana_data:
